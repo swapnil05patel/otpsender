@@ -128,13 +128,20 @@ func requestMobile(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 
 	from, password := loadConfig()
+	if from == "" || password == "" {
+		fmt.Printf("Missing Gmail credentials\n")
+		json.NewEncoder(w).Encode(Response{Success: false, Message: "Email service not configured"})
+		return
+	}
+
 	subject := "Mobile Number Required for OTP"
 	body := fmt.Sprintf("Please provide your mobile number to receive OTP.\n\nClick: %s/mobile-form?email=%s", getBaseURL(), req.Email)
 
+	fmt.Printf("Attempting to send email from %s to %s\n", from, req.Email)
 	err := sendEmail(req.Email, subject, body, from, password)
 	if err != nil {
 		fmt.Printf("Email Error: %v\n", err)
-		json.NewEncoder(w).Encode(Response{Success: false, Message: "Failed to send email"})
+		json.NewEncoder(w).Encode(Response{Success: false, Message: fmt.Sprintf("Failed to send email: %v", err)})
 		return
 	}
 
