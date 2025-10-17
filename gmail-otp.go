@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +11,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 type EmailOTPRequest struct {
@@ -85,31 +87,18 @@ func sendEmail(to, subject, body, from, password string) error {
 }
 
 func sendEmailViaSendGrid(to, subject, body, from, apiKey string) error {
-	payload := map[string]interface{}{
-		"personalizations": []map[string]interface{}{
-			{"to": []map[string]string{{"email": to}}},
-		},
-		"from": map[string]string{"email": from},
-		"subject": subject,
-		"content": []map[string]string{
-			{"type": "text/plain", "value": body},
-		},
-	}
+	fromEmail := mail.NewEmail("", from)
+	toEmail := mail.NewEmail("", to)
+	message := mail.NewSingleEmail(fromEmail, subject, toEmail, body, "")
 	
-	jsonData, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", "https://api.sendgrid.com/v3/mail/send", bytes.NewBuffer(jsonData))
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	client := sendgrid.NewSendClient(apiKey)
+	response, err := client.Send(message)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("SendGrid API error: %d", resp.StatusCode)
+	if response.StatusCode >= 400 {
+		return fmt.Errorf("SendGrid API error: %d - %s", response.StatusCode, response.Body)
 	}
 	return nil
 }
@@ -123,6 +112,12 @@ func requestMobile(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Missing email credentials\n")
 		json.NewEncoder(w).Encode(Response{Success: false, Message: "Email service not configured"})
 		return
+	}
+	
+	// For SendGrid, use a verified sender email
+	if sendgridKey != "" {
+		// Use the same email as sender for SendGrid
+		from = from // Ensure sender is verified in SendGrid
 	}
 
 	subject := "Mobile Number Required for OTP"
