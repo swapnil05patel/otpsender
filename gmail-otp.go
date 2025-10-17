@@ -40,16 +40,23 @@ func generateOTP() string {
 	return fmt.Sprintf("%06d", rand.Intn(1000000))
 }
 
+func getBaseURL() string {
+	if url := os.Getenv("BASE_URL"); url != "" {
+		return url
+	}
+	return "http://localhost:8083"
+}
+
 func loadConfig() (string, string) {
+	// Try environment variables first (for Render)
+	if email := os.Getenv("GMAIL_EMAIL"); email != "" {
+		return email, os.Getenv("GMAIL_APP_PASSWORD")
+	}
+
+	// Fallback to .env file for local development
 	file, err := os.Open(".env")
 	if err != nil {
-		fmt.Println("Enter Gmail credentials:")
-		fmt.Print("Gmail Email: ")
-		reader := bufio.NewReader(os.Stdin)
-		email, _ := reader.ReadString('\n')
-		fmt.Print("Gmail App Password: ")
-		password, _ := reader.ReadString('\n')
-		return strings.TrimSpace(email), strings.TrimSpace(password)
+		return "", ""
 	}
 	defer file.Close()
 
@@ -122,7 +129,7 @@ func requestMobile(w http.ResponseWriter, r *http.Request) {
 
 	from, password := loadConfig()
 	subject := "Mobile Number Required for OTP"
-	body := fmt.Sprintf("Please provide your mobile number to receive OTP.\n\nClick: http://localhost:8083/mobile-form?email=%s", req.Email)
+	body := fmt.Sprintf("Please provide your mobile number to receive OTP.\n\nClick: %s/mobile-form?email=%s", getBaseURL(), req.Email)
 
 	err := sendEmail(req.Email, subject, body, from, password)
 	if err != nil {
@@ -245,6 +252,10 @@ func main() {
 		}
 	})
 
-	log.Println("Gmail OTP Server starting on :8083")
-	log.Fatal(http.ListenAndServe(":8083", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8083"
+	}
+	log.Printf("Gmail OTP Server starting on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

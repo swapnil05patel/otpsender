@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: otp-sender
+    env: go
+    buildCommand: go build -o main gmail-otp.go
+    startCommand: ./main
+    envVars:
+      - key: GMAIL_EMAIL
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: BASE_URL
+        sync: false
