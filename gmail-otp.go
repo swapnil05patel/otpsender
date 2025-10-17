@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -76,51 +75,7 @@ func sendEmail(to, subject, body, from, password string) error {
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", from, to, subject, body)
 
 	auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-	
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         "smtp.gmail.com",
-	}
-
-	conn, err := tls.Dial("tcp", "smtp.gmail.com:465", tlsConfig)
-	if err != nil {
-		return err
-	}
-
-	client, err := smtp.NewClient(conn, "smtp.gmail.com")
-	if err != nil {
-		return err
-	}
-	defer client.Quit()
-
-	if err = client.Auth(auth); err != nil {
-		return err
-	}
-
-	if err = client.Mail(from); err != nil {
-		return err
-	}
-
-	if err = client.Rcpt(to); err != nil {
-		return err
-	}
-
-	writer, err := client.Data()
-	if err != nil {
-		return err
-	}
-
-	_, err = writer.Write([]byte(msg))
-	if err != nil {
-		return err
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, []byte(msg))
 }
 
 func requestMobile(w http.ResponseWriter, r *http.Request) {
