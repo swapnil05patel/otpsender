@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -46,16 +47,16 @@ func getBaseURL() string {
 	return "http://localhost:8083"
 }
 
-func loadConfig() (string, string) {
+func loadConfig() (string, string, string) {
 	// Try environment variables first (for Render)
 	if email := os.Getenv("GMAIL_EMAIL"); email != "" {
-		return email, os.Getenv("GMAIL_APP_PASSWORD")
+		return email, os.Getenv("GMAIL_APP_PASSWORD"), os.Getenv("SENDGRID_API_KEY")
 	}
 
 	// Fallback to .env file for local development
 	file, err := os.Open(".env")
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	defer file.Close()
 
@@ -68,23 +69,58 @@ func loadConfig() (string, string) {
 			config[parts[0]] = parts[1]
 		}
 	}
-	return config["GMAIL_EMAIL"], config["GMAIL_APP_PASSWORD"]
+	return config["GMAIL_EMAIL"], config["GMAIL_APP_PASSWORD"], config["SENDGRID_API_KEY"]
 }
 
 func sendEmail(to, subject, body, from, password string) error {
+	// Try SendGrid API first (works on Render)
+	if apiKey := os.Getenv("SENDGRID_API_KEY"); apiKey != "" {
+		return sendEmailViaSendGrid(to, subject, body, from, apiKey)
+	}
+	
+	// Fallback to SMTP (for local development)
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", from, to, subject, body)
-
 	auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
 	return smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, []byte(msg))
+}
+
+func sendEmailViaSendGrid(to, subject, body, from, apiKey string) error {
+	payload := map[string]interface{}{
+		"personalizations": []map[string]interface{}{
+			{"to": []map[string]string{{"email": to}}},
+		},
+		"from": map[string]string{"email": from},
+		"subject": subject,
+		"content": []map[string]string{
+			{"type": "text/plain", "value": body},
+		},
+	}
+	
+	jsonData, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "https://api.sendgrid.com/v3/mail/send", bytes.NewBuffer(jsonData))
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("SendGrid API error: %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func requestMobile(w http.ResponseWriter, r *http.Request) {
 	var req EmailOTPRequest
 	json.NewDecoder(r.Body).Decode(&req)
 
-	from, password := loadConfig()
-	if from == "" || password == "" {
-		fmt.Printf("Missing Gmail credentials\n")
+	from, password, sendgridKey := loadConfig()
+	if from == "" || (password == "" && sendgridKey == "") {
+		fmt.Printf("Missing email credentials\n")
 		json.NewEncoder(w).Encode(Response{Success: false, Message: "Email service not configured"})
 		return
 	}
