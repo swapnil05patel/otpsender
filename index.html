@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Two-Step OTP Verification</title>
+</head>
+<body>
+    <h1>Two-Step OTP Verification</h1>
+    <p>Step 1: Enter email to receive mobile form link</p>
+    
+    <div>
+        <input type="email" id="email" placeholder="your-email@gmail.com">
+        <button onclick="requestMobile()">Send Mobile Form Link</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        async function requestMobile() {
+            const email = document.getElementById('email').value;
+            const response = await fetch('/request-mobile', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const result = await response.json();
+            document.getElementById('result').innerHTML = JSON.stringify(result);
+        }
+    </script>
+</body>
+</html>
