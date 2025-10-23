@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SMS OTP Test</title>
+</head>
+<body>
+    <h1>SMS OTP Service</h1>
+    
+    <div>
+        <h3>Send OTP</h3>
+        <input type="text" id="phone" placeholder="+1234567890">
+        <button onclick="sendOTP()">Send OTP</button>
+    </div>
+    
+    <div>
+        <h3>Verify OTP</h3>
+        <input type="text" id="verifyPhone" placeholder="+1234567890">
+        <input type="text" id="otp" placeholder="123456">
+        <button onclick="verifyOTP()">Verify OTP</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        async function sendOTP() {
+            const phone = document.getElementById('phone').value;
+            const response = await fetch('/send-otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone})
+            });
+            const result = await response.json();
+            document.getElementById('result').innerHTML = JSON.stringify(result);
+        }
+
+        async function verifyOTP() {
+            const phone = document.getElementById('verifyPhone').value;
+            const otp = document.getElementById('otp').value;
+            const response = await fetch('/verify-otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone, otp})
+            });
+            const result = await response.json();
+            document.getElementById('result').innerHTML = JSON.stringify(result);
+        }
+    </script>
+</body>
+</html>

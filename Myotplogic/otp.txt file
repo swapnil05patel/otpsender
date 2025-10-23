@@ -1,0 +1,36 @@
+Step 1: Enable 2-Step Verification
+
+Go to Google Account Security
+
+Under “Signing in to Google”, find 2-Step Verification → click Turn On
+
+Follow the steps to enable it (phone number, verification, etc.)
+
+⚠️ You cannot generate App Passwords without 2-Step Verification.
+
+Step 2: Generate App Password
+
+Go to App Passwords
+
+Sign in if prompted.
+
+Under “Select app” → choose Mail
+
+Under “Select device” → choose Other (Custom name) → type something like Go OTP App
+
+Click Generate
+
+Step 3: Copy the 16-character password
+
+Google will show a 16-character password in groups of 4, e.g.:
+
+abcd efgh ijkl mnop
+
+
+Remove the spaces when putting in .env:
+
+GMAIL_EMAIL=swapnilshilpa05@gmail.com
+GMAIL_APP_PASSWORD=abcdefghijklmnop
+
+
+✅ Done! You can now use this App Password in your Go program to send OTP emails via Gmail.
